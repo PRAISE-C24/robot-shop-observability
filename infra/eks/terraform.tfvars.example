@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars and fill in your values. The real file is git-ignored.
+
+# In GitHub Actions these come from TF_VAR_ environment variables instead.
+
+admin_user_arn    = "arn:aws:iam::<account-id>:user/<your-user>"
+
+pipeline_role_arn = "arn:aws:iam::<account-id>:role/gha-robot-shop-apply"

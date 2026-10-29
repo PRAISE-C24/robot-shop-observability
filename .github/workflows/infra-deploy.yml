@@ -1,0 +1,47 @@
+name: infra-deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VAR_admin_user_arn: ${{ vars.ADMIN_USER_ARN }}
+  TF_VAR_pipeline_role_arn: ${{ vars.AWS_APPLY_ROLE_ARN }}
+
+concurrency:
+  group: terraform-eks
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production   # waits for your approval, and is the only way to assume the apply role
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">= 1.10"
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Write backend.hcl for the script
+        run: |
+          cat > infra/eks/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          key          = "robot-shop-observability/eks/terraform.tfstate"
+          region       = "${{ vars.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Run deploy script
+        run: bash scripts/deploy.sh

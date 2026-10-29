@@ -1,0 +1,113 @@
+name: infra-destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VAR_admin_user_arn: ${{ vars.ADMIN_USER_ARN }}
+  TF_VAR_pipeline_role_arn: ${{ vars.AWS_APPLY_ROLE_ARN }}
+
+concurrency:
+  group: terraform-eks
+  cancel-in-progress: false
+
+jobs:
+  destroy:
+    # Skipped entirely, with no approval request, unless the word matches
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">= 1.10"
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Write backend.hcl for the script
+        run: |
+          cat > infra/eks/backend.hcl <<EOF
+          bucket       = "${{ vars.TF_STATE_BUCKET }}"
+          key          = "robot-shop-observability/eks/terraform.tfstate"
+          region       = "${{ vars.AWS_REGION }}"
+          encrypt      = true
+          use_lockfile = true
+          EOF
+
+      - name: Remove the app and wait for its load balancers to disappear
+        env:
+          CLUSTER_NAME: robot-shop
+          RELEASE: voting-app
+          NAMESPACE: voting-app
+        run: |
+          if ! aws eks describe-cluster --name "$CLUSTER_NAME" >/dev/null 2>&1; then
+            echo "No cluster, nothing to remove."; exit 0
+          fi
+          aws eks update-kubeconfig --name "$CLUSTER_NAME"
+          if helm status "$RELEASE" --namespace "$NAMESPACE" >/dev/null 2>&1; then
+            helm uninstall "$RELEASE" --namespace "$NAMESPACE" --wait --timeout 5m
+          else
+            echo "Release $RELEASE is not installed."
+          fi
+          for i in $(seq 1 30); do
+            LBS=$(aws resourcegroupstaggingapi get-resources \
+                    --resource-type-filters elasticloadbalancing:loadbalancer \
+                    --tag-filters "Key=elbv2.k8s.aws/cluster,Values=$CLUSTER_NAME" \
+                    --query 'ResourceTagMappingList[].ResourceARN' --output text)
+            [ -z "$LBS" ] && { echo "Load balancers are gone."; exit 0; }
+            echo "Waiting for load balancers to be deleted..."; sleep 10
+          done
+          echo "::error::Load balancers still exist after 5 minutes. Not destroying."; exit 1
+
+      - name: Run destroy script
+        run: bash scripts/destroy.sh
+
+  verify:
+    needs: destroy   # runs right after a successful destroy, and is skipped otherwise
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">= 1.10"
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Init, so the script can read state
+        working-directory: infra/eks
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=robot-shop-observability/eks/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: Verify nothing is left
+        run: |
+          for attempt in 1 2 3; do
+            bash scripts/verify-destroyed.sh && exit 0
+            echo "Attempt $attempt found leftovers; waiting 90s in case AWS is still cleaning up"
+            [ "$attempt" -lt 3 ] && sleep 90
+          done
+          exit 1      

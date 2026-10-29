@@ -1,0 +1,16 @@
+*.pyc
+project.lock.json
+bin/
+obj/
+.vs/
+node_modules/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+tfplan
+crash.log
+backend.hcl
