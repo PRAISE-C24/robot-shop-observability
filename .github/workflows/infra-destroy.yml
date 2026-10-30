@@ -66,6 +66,9 @@ jobs:
                 helm uninstall "$name" --namespace "$ns" --wait --timeout 5m
               done
 
+          # 1b. Ingresses made outside Helm. The load balancer controller must still be running.
+          kubectl delete ingress --all --all-namespaces --wait --timeout=5m
+          
           # 2. Volume claims. The EBS driver deletes the volumes, so it must still be running.
           kubectl delete pvc --all --all-namespaces --wait --timeout=5m
 
