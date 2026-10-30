@@ -1,5 +1,23 @@
+
 loki:
   auth_enabled: false
+
+  storage:
+    type: filesystem
+    bucketNames:
+      chunks: chunks
+      ruler: ruler
+      admin: admin
+
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
 
 deploymentMode: SingleBinary
 
@@ -19,10 +37,10 @@ chunksCache:
 resultsCache:
   enabled: false
 
-write:
+read:
   replicas: 0
 
-read:
+write:
   replicas: 0
 
 backend:

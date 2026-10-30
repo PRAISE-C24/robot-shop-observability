@@ -1,17 +1,49 @@
-provisionDataStore:
-  cassandra: false
-
-allInOne:
+jaeger:
   enabled: true
+  replicas: 1
 
-storage:
-  type: memory
+userconfig:
+  service:
+    extensions:
+      - jaeger_storage
+      - jaeger_query
+      - healthcheckv2
+    pipelines:
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - batch
+        exporters:
+          - jaeger_storage_exporter
 
-agent:
-  enabled: false
+  extensions:
+    healthcheckv2:
+      use_v2: true
+      http:
+        endpoint: 0.0.0.0:13133
 
-collector:
-  enabled: false
+    jaeger_query:
+      storage:
+        traces: primary_store
 
-query:
-  enabled: false
+    jaeger_storage:
+      backends:
+        primary_store:
+          memory:
+            max_traces: 100000
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    batch: {}
+
+  exporters:
+    jaeger_storage_exporter:
+      trace_storage: primary_store
