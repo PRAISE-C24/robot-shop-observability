@@ -18,3 +18,10 @@ backend.hcl
 # Secrets
 slo/slack-secret.yaml
 .env
+
+# Terraform plans
+*.tfplan
+destroy.tfplan
+
+# Sensitive files
+slo/slack-secret.yaml
