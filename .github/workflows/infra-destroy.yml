@@ -49,30 +49,45 @@ jobs:
           use_lockfile = true
           EOF
 
-      - name: Remove the app and wait for its load balancers to disappear
+      - name: Remove everything Kubernetes created, and wait until AWS agrees
         env:
           CLUSTER_NAME: robot-shop
-          RELEASE: voting-app
-          NAMESPACE: voting-app
         run: |
           if ! aws eks describe-cluster --name "$CLUSTER_NAME" >/dev/null 2>&1; then
             echo "No cluster, nothing to remove."; exit 0
           fi
           aws eks update-kubeconfig --name "$CLUSTER_NAME"
-          if helm status "$RELEASE" --namespace "$NAMESPACE" >/dev/null 2>&1; then
-            helm uninstall "$RELEASE" --namespace "$NAMESPACE" --wait --timeout 5m
-          else
-            echo "Release $RELEASE is not installed."
-          fi
+
+          # 1. Helm releases. The load balancer controller stays until the load balancers are gone.
+          helm list --all-namespaces --output json \
+            | jq -r '.[] | select(.name != "aws-load-balancer-controller") | "\(.namespace) \(.name)"' \
+            | while read -r ns name; do
+                echo "Uninstalling $name in $ns"
+                helm uninstall "$name" --namespace "$ns" --wait --timeout 5m
+              done
+
+          # 2. Volume claims. The EBS driver deletes the volumes, so it must still be running.
+          kubectl delete pvc --all --all-namespaces --wait --timeout=5m
+
+          # 3. Wait until AWS has really deleted the load balancers and volumes.
           for i in $(seq 1 30); do
-            LBS=$(aws resourcegroupstaggingapi get-resources \
-                    --resource-type-filters elasticloadbalancing:loadbalancer \
-                    --tag-filters "Key=elbv2.k8s.aws/cluster,Values=$CLUSTER_NAME" \
-                    --query 'ResourceTagMappingList[].ResourceARN' --output text)
-            [ -z "$LBS" ] && { echo "Load balancers are gone."; exit 0; }
-            echo "Waiting for load balancers to be deleted..."; sleep 10
+            LBS="$(aws resourcegroupstaggingapi get-resources \
+                     --resource-type-filters elasticloadbalancing:loadbalancer \
+                     --tag-filters "Key=elbv2.k8s.aws/cluster,Values=$CLUSTER_NAME" \
+                     --query 'ResourceTagMappingList[].ResourceARN' --output text)
+                   $(aws resourcegroupstaggingapi get-resources \
+                     --resource-type-filters elasticloadbalancing:loadbalancer \
+                     --tag-filters "Key=kubernetes.io/cluster/$CLUSTER_NAME" \
+                     --query 'ResourceTagMappingList[].ResourceARN' --output text)"
+            VOLS="$(aws ec2 describe-volumes \
+                     --filters "Name=tag-key,Values=kubernetes.io/created-for/pvc/name" \
+                     --query 'Volumes[].VolumeId' --output text)"
+            if [ -z "${LBS//[[:space:]]/}" ] && [ -z "$VOLS" ]; then
+              echo "Load balancers and volumes are gone."; exit 0
+            fi
+            echo "Waiting for AWS to delete: $LBS $VOLS"; sleep 10
           done
-          echo "::error::Load balancers still exist after 5 minutes. Not destroying."; exit 1
+          echo "::error::Load balancers or volumes still exist after 5 minutes. Not destroying."; exit 1
 
       - name: Run destroy script
         run: bash scripts/destroy.sh

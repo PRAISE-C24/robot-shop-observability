@@ -44,6 +44,9 @@ check "CloudWatch log groups" "$(aws logs describe-log-groups --region "$REGION"
   --log-group-name-prefix "/aws/eks/$CLUSTER" --query 'logGroups[].logGroupName' --output text)"
 check "KMS aliases" "$(aws kms list-aliases --region "$REGION" \
   --query "Aliases[?contains(AliasName, '$CLUSTER')].AliasName" --output text)"
+check "EBS volumes created by Kubernetes" "$(aws ec2 describe-volumes --region "$REGION" \
+  --filters "Name=tag-key,Values=kubernetes.io/created-for/pvc/name" \
+  --query 'Volumes[].VolumeId' --output text)"
 
 echo
 if [[ $leftovers -eq 0 ]]; then
