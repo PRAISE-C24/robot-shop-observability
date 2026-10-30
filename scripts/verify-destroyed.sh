@@ -37,7 +37,7 @@ check "Security groups" "$(aws ec2 describe-security-groups --region "$REGION" \
   --filters "Name=group-name,Values=*$CLUSTER*" \
   --query 'SecurityGroups[].GroupId' --output text)"
 check "IAM roles" "$(aws iam list-roles \
-  --query "Roles[?contains(RoleName, '$CLUSTER') || contains(RoleName, 'eks-node-group')].RoleName" --output text)"
+  --query "Roles[?(contains(RoleName, '$CLUSTER') && !starts_with(RoleName, 'gha-')) || contains(RoleName, 'eks-node-group')].RoleName" --output text)"
 check "IAM OIDC providers" "$(aws iam list-open-id-connect-providers \
   --query "OpenIDConnectProviderList[?contains(Arn, 'oidc.eks')].Arn" --output text)"
 check "CloudWatch log groups" "$(aws logs describe-log-groups --region "$REGION" \
