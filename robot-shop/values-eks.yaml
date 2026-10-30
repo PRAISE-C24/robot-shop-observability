@@ -1,0 +1,3 @@
+nodeport: true            # NodePort instead of a public LoadBalancer: reach the shop with kubectl port-forward
+redis:
+  storageClassName: gp3   # the chart's default, "standard", does not exist on this cluster
