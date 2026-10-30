@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ebs-test
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ebs-test
+spec:
+  containers:
+    - name: c
+      image: busybox:1.37
+      command: ["sh", "-c", "echo ok > /data/x && sleep 3600"]
+      volumeMounts:
+        - name: d
+          mountPath: /data
+  volumes:
+    - name: d
+      persistentVolumeClaim:
+        claimName: ebs-test
