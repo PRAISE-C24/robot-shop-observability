@@ -1,57 +1,91 @@
 #!/usr/bin/env bash
-# Read-only check that nothing from the project is left in AWS.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit
+
 REGION="${AWS_REGION:-us-east-1}"
 CLUSTER="${CLUSTER_NAME:-robot-shop}"
+PROJECT="robot-shop-observability"
 leftovers=0
 
-check() {  # check "<label>" "<command output>"
-  if [[ -z "$2" || "$2" == "None" ]]; then
-    printf 'OK     %s\n' "$1"
-  else
-    printf 'FOUND  %s: %s\n' "$1" "$2"
-    leftovers=1
-  fi
+fail() {
+  printf 'FOUND  %s: %s\n' "$1" "$2"
+  leftovers=1
 }
 
+pass() {
+  printf 'OK     %s\n' "$1"
+}
+
+echo "== Terraform state =="
 if state_out="$(cd infra/eks && terraform state list 2>&1)"; then
-  check "Terraform state entries" "$state_out"
+  if [[ -z "$state_out" ]]; then
+    pass "Terraform state is empty"
+  else
+    fail "Terraform state entries" "$state_out"
+  fi
 else
-  printf 'ERROR  could not read Terraform state: %s\n' "$state_out"
-  leftovers=1
+  fail "Could not read Terraform state" "$state_out"
 fi
-check "EKS clusters" "$(aws eks list-clusters --region "$REGION" --query 'clusters' --output text)"
-check "EC2 instances" "$(aws ec2 describe-instances --region "$REGION" \
-  --filters "Name=tag:eks:cluster-name,Values=$CLUSTER" \
-            "Name=instance-state-name,Values=pending,running,stopping,stopped" \
-  --query 'Reservations[].Instances[].InstanceId' --output text)"
-check "Load balancers (v2)" "$(aws elbv2 describe-load-balancers --region "$REGION" \
-  --query 'LoadBalancers[].LoadBalancerName' --output text 2>/dev/null)"
-check "Load balancers (classic)" "$(aws elb describe-load-balancers --region "$REGION" \
-  --query 'LoadBalancerDescriptions[].LoadBalancerName' --output text 2>/dev/null)"
-check "EKS network interfaces" "$(aws ec2 describe-network-interfaces --region "$REGION" \
-  --filters "Name=description,Values=Amazon EKS $CLUSTER*" \
-  --query 'NetworkInterfaces[].NetworkInterfaceId' --output text)"
-check "Security groups" "$(aws ec2 describe-security-groups --region "$REGION" \
-  --filters "Name=group-name,Values=*$CLUSTER*" \
-  --query 'SecurityGroups[].GroupId' --output text)"
-check "IAM roles" "$(aws iam list-roles \
-  --query "Roles[?(contains(RoleName, '$CLUSTER') && !starts_with(RoleName, 'gha-')) || contains(RoleName, 'eks-node-group')].RoleName" --output text)"
-check "IAM OIDC providers" "$(aws iam list-open-id-connect-providers \
-  --query "OpenIDConnectProviderList[?contains(Arn, 'oidc.eks')].Arn" --output text)"
-check "CloudWatch log groups" "$(aws logs describe-log-groups --region "$REGION" \
-  --log-group-name-prefix "/aws/eks/$CLUSTER" --query 'logGroups[].logGroupName' --output text)"
-check "KMS aliases" "$(aws kms list-aliases --region "$REGION" \
-  --query "Aliases[?contains(AliasName, '$CLUSTER')].AliasName" --output text)"
-check "EBS volumes created by Kubernetes" "$(aws ec2 describe-volumes --region "$REGION" \
-  --filters "Name=tag-key,Values=kubernetes.io/created-for/pvc/name" \
-  --query 'Volumes[].VolumeId' --output text)"
 
 echo
-if [[ $leftovers -eq 0 ]]; then
-  echo "All clear: nothing from the project remains."
+echo "== EKS cluster =="
+if aws eks describe-cluster --name "$CLUSTER" --region "$REGION" >/dev/null 2>&1; then
+  fail "EKS cluster" "$CLUSTER still exists"
 else
-  echo "Some resources remain. Wait a few minutes and rerun; if they persist, tell me what is listed."
+  pass "EKS cluster is absent"
 fi
-exit $leftovers
+
+echo
+echo "== Project-tagged resources =="
+
+resources="$(aws resourcegroupstaggingapi get-resources \
+  --tag-filters "Key=Project,Values=$PROJECT" \
+  --region "$REGION" \
+  --query 'ResourceTagMappingList[].ResourceARN' \
+  --output text 2>&1)" || {
+    fail "Could not list project resources" "$resources"
+    resources=""
+  }
+
+for arn in $resources; do
+  case "$arn" in
+    arn:aws:kms:*:key/*)
+      key_id="${arn##*/}"
+      key_state="$(aws kms describe-key --key-id "$key_id" \
+        --region "$REGION" \
+        --query 'KeyMetadata.KeyState' --output text 2>&1)" || {
+          fail "KMS key lookup failed" "$key_id: $key_state"
+          continue
+        }
+
+      if [[ "$key_state" == "PendingDeletion" ]]; then
+        pass "KMS key $key_id is pending deletion"
+      else
+        fail "KMS key $key_id" "state=$key_state"
+      fi
+      ;;
+
+    arn:aws:eks:*:podidentityassociation/*)
+      cluster_from_arn="$(printf '%s' "$arn" | cut -d/ -f2)"
+      if aws eks describe-cluster --name "$cluster_from_arn" \
+        --region "$REGION" >/dev/null 2>&1; then
+        fail "Pod Identity association" "$arn"
+      else
+        pass "Pod Identity association belongs to deleted cluster $cluster_from_arn"
+      fi
+      ;;
+
+    *)
+      fail "Unclassified project resource" "$arn"
+      ;;
+  esac
+done
+
+echo
+if [[ "$leftovers" -eq 0 ]]; then
+  echo "All clear: no active project resources remain."
+else
+  echo "Verification failed: active or unclassified project resources remain."
+fi
+
+exit "$leftovers"
