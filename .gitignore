@@ -14,3 +14,7 @@ node_modules/
 tfplan
 crash.log
 backend.hcl
+
+# Secrets
+slo/slack-secret.yaml
+.env

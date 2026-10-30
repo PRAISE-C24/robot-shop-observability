@@ -1,0 +1,15 @@
+groups:
+  - name: robot-shop-slo
+    rules:
+      - alert: RobotShopHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{namespace="robot-shop",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{namespace="robot-shop"}[5m]))
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Robot Shop error rate is above 1%
+          description: The HTTP 5xx error rate has exceeded 1% for 5 minutes.
