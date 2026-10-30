@@ -8,6 +8,7 @@ kubectl delete -f robot-shop/ingress.yaml \
 
 echo "Waiting for ALB cleanup..."
 for i in {1..30}; do
+  echo "Ingress cleanup check $i/30..."
   if ! kubectl get ingress -n robot-shop 2>/dev/null | grep -q robot-shop; then
     break
   fi
