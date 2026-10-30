@@ -85,6 +85,12 @@ module "eks" {
     eks-pod-identity-agent = { before_compute = true }
     kube-proxy             = {}
     vpc-cni                = { before_compute = true }
+    aws-ebs-csi-driver = {
+      pod_identity_association = [{
+        role_arn        = module.ebs_csi_pod_identity.iam_role_arn
+        service_account = "ebs-csi-controller-sa"
+      }]
+    }
   }
 
   eks_managed_node_groups = {
@@ -125,4 +131,12 @@ resource "aws_eks_pod_identity_association" "lb_controller" {
   namespace       = "kube-system"
   service_account = "aws-load-balancer-controller"
   role_arn        = module.lb_controller_pod_identity.iam_role_arn
+}
+
+module "ebs_csi_pod_identity" {
+  source  = "terraform-aws-modules/eks-pod-identity/aws"
+  version = "2.10.0"
+
+  name                      = "${var.cluster_name}-ebs-csi"
+  attach_aws_ebs_csi_policy = true
 }
