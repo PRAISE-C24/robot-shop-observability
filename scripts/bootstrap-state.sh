@@ -23,6 +23,10 @@ else
     --create-bucket-configuration "LocationConstraint=${REGION}"
 fi
 
+ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+aws s3api head-bucket --bucket "${BUCKET}" --expected-bucket-owner "${ACCOUNT_ID}" \
+  || { echo "Bucket ${BUCKET} is not owned by account ${ACCOUNT_ID}. Aborting."; exit 1; }
+
 aws s3api put-public-access-block --bucket "${BUCKET}" \
   --public-access-block-configuration \
   BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true

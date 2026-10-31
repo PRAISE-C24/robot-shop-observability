@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: robot-shop
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - robot-shop
+  selector:
+    matchExpressions:
+      - key: service
+        operator: In
+        values: [cart, payment]
+  podMetricsEndpoints:
+    - portNumber: 8080
+      path: /metrics
+      interval: 30s

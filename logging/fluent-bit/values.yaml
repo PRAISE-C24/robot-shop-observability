@@ -32,13 +32,6 @@ config:
         Match kube.*
         Regex $kubernetes['namespace_name'] robot-shop
 
-service:
-  flush: 1
-  log_level: info
-
-daemonSet:
-  enabled: true
-
 resources:
   requests:
     cpu: 100m

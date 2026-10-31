@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../infra/eks"
 
+trap 'rm -f tfplan' EXIT
+
 for tool in terraform aws; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool"; exit 1; }
 done

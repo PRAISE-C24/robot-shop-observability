@@ -1,4 +1,8 @@
 alertmanager:
+  alertmanagerSpec:
+    secrets:
+      - slack-webhook
+
   config:
     global:
       resolve_timeout: 5m
@@ -14,6 +18,6 @@ alertmanager:
     receivers:
       - name: slack
         slack_configs:
-          - api_url_file: /etc/alertmanager/secrets/slack-webhook-url
+          - api_url_file: /etc/alertmanager/secrets/slack-webhook/slack-webhook-url
             channel: "#alerts"
             send_resolved: true

@@ -6,10 +6,20 @@ grafana:
     accessModes:
       - ReadWriteOnce
     size: 5Gi
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
 
 prometheus:
   prometheusSpec:
     retention: 7d
+    # Pick up our own ServiceMonitors, PodMonitors, Probes and rules, not only the chart's
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
     storageSpec:
       volumeClaimTemplate:
         spec:
