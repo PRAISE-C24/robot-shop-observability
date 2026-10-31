@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production   # waits for your approval, and is the only way to assume the apply role
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: hashicorp/setup-terraform@v3
         with:
