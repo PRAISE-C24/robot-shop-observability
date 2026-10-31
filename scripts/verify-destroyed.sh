@@ -85,6 +85,17 @@ for arn in $resources; do
       fi
       ;;
 
+    arn:aws:ec2:*:volume/*)
+      vol_id="${arn##*/}"
+      vol_out="$(aws ec2 describe-volumes --volume-ids "$vol_id" \
+        --region "$REGION" --query 'Volumes[0].State' --output text 2>&1)"
+      if grep -q "InvalidVolume.NotFound" <<<"$vol_out" || [[ "$vol_out" == "deleted" ]]; then
+        pass "Volume $vol_id is deleted (the tag index entry is stale)"
+      else
+        fail "Volume $vol_id" "$vol_out"
+      fi
+      ;;
+
     *)
       fail "Unclassified project resource" "$arn"
       ;;
