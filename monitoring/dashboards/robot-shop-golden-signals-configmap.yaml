@@ -1,0 +1,204 @@
+apiVersion: v1
+data:
+  robot-shop-golden-signals.json: "{\r\n  \"uid\": \"robot-shop-signals\",\r\n  \"title\":
+    \"Robot Shop: Requests, Errors, Latency\",\r\n  \"tags\": [\r\n    \"robot-shop\",\r\n
+    \   \"golden-signals\"\r\n  ],\r\n  \"timezone\": \"browser\",\r\n  \"schemaVersion\":
+    39,\r\n  \"version\": 1,\r\n  \"editable\": true,\r\n  \"refresh\": \"30s\",\r\n
+    \ \"time\": {\r\n    \"from\": \"now-3h\",\r\n    \"to\": \"now\"\r\n  },\r\n
+    \ \"templating\": {\r\n    \"list\": [\r\n      {\r\n        \"name\": \"ds_prom\",\r\n
+    \       \"label\": \"Prometheus\",\r\n        \"type\": \"datasource\",\r\n        \"query\":
+    \"prometheus\",\r\n        \"hide\": 0,\r\n        \"current\": {}\r\n      },\r\n
+    \     {\r\n        \"name\": \"ds_loki\",\r\n        \"label\": \"Loki\",\r\n
+    \       \"type\": \"datasource\",\r\n        \"query\": \"loki\",\r\n        \"hide\":
+    0,\r\n        \"current\": {}\r\n      }\r\n    ]\r\n  },\r\n  \"panels\": [\r\n
+    \   {\r\n      \"id\": 1,\r\n      \"type\": \"stat\",\r\n      \"title\": \"Availability
+    (worst probe, 5m)\",\r\n      \"description\": \"Lowest success ratio across the
+    frontpage, catalogue and shipping probes.\",\r\n      \"datasource\": {\r\n        \"type\":
+    \"prometheus\",\r\n        \"uid\": \"${ds_prom}\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"x\": 0,\r\n        \"y\": 0,\r\n        \"w\": 6,\r\n        \"h\":
+    4\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"prometheus\",\r\n            \"uid\": \"${ds_prom}\"\r\n
+    \         },\r\n          \"expr\": \"min(avg_over_time(probe_success[5m]))\",\r\n
+    \         \"legendFormat\": \"\",\r\n          \"range\": true,\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"options\": {\r\n        \"reduceOptions\":
+    {\r\n          \"calcs\": [\r\n            \"lastNotNull\"\r\n          ],\r\n
+    \         \"fields\": \"\",\r\n          \"values\": false\r\n        },\r\n        \"colorMode\":
+    \"background\",\r\n        \"graphMode\": \"area\",\r\n        \"textMode\": \"value\"\r\n
+    \     },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
+    \"percentunit\",\r\n          \"thresholds\": {\r\n            \"mode\": \"absolute\",\r\n
+    \           \"steps\": [\r\n              {\r\n                \"color\": \"red\",\r\n
+    \               \"value\": null\r\n              },\r\n              {\r\n                \"color\":
+    \"orange\",\r\n                \"value\": 0.99\r\n              },\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": 0.999\r\n
+    \             }\r\n            ]\r\n          },\r\n          \"decimals\": 2\r\n
+    \       },\r\n        \"overrides\": []\r\n      }\r\n    },\r\n    {\r\n      \"id\":
+    2,\r\n      \"type\": \"stat\",\r\n      \"title\": \"Requests per second\",\r\n
+    \     \"description\": \"All requests seen by the Nginx front end, including health
+    checks and probes.\",\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n
+    \       \"uid\": \"${ds_loki}\"\r\n      },\r\n      \"gridPos\": {\r\n        \"x\":
+    6,\r\n        \"y\": 0,\r\n        \"w\": 6,\r\n        \"h\": 4\r\n      },\r\n
+    \     \"targets\": [\r\n        {\r\n          \"datasource\": {\r\n            \"type\":
+    \"loki\",\r\n            \"uid\": \"${ds_loki}\"\r\n          },\r\n          \"expr\":
+    \"sum(rate({namespace=\\\"robot-shop\\\", service=\\\"web\\\"} | json | line_format
+    \\\"{{.log}}\\\" | pattern `<_> - - [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>`
+    | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\" [1m]))\",\r\n          \"legendFormat\":
+    \"\",\r\n          \"queryType\": \"range\",\r\n          \"refId\": \"A\"\r\n
+    \       }\r\n      ],\r\n      \"options\": {\r\n        \"reduceOptions\": {\r\n
+    \         \"calcs\": [\r\n            \"lastNotNull\"\r\n          ],\r\n          \"fields\":
+    \"\",\r\n          \"values\": false\r\n        },\r\n        \"colorMode\": \"background\",\r\n
+    \       \"graphMode\": \"area\",\r\n        \"textMode\": \"value\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\": \"reqps\",\r\n
+    \         \"thresholds\": {\r\n            \"mode\": \"absolute\",\r\n            \"steps\":
+    [\r\n              {\r\n                \"color\": \"blue\",\r\n                \"value\":
+    null\r\n              }\r\n            ]\r\n          }\r\n        },\r\n        \"overrides\":
+    []\r\n      }\r\n    },\r\n    {\r\n      \"id\": 3,\r\n      \"type\": \"stat\",\r\n
+    \     \"title\": \"Server error ratio (5xx)\",\r\n      \"description\": \"Share
+    of requests answered with a 5xx status.\",\r\n      \"datasource\": {\r\n        \"type\":
+    \"loki\",\r\n        \"uid\": \"${ds_loki}\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"x\": 12,\r\n        \"y\": 0,\r\n        \"w\": 6,\r\n        \"h\":
+    4\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"${ds_loki}\"\r\n
+    \         },\r\n          \"expr\": \"(sum(rate({namespace=\\\"robot-shop\\\",
+    service=\\\"web\\\"} | json | line_format \\\"{{.log}}\\\" | pattern `<_> - -
+    [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>` | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\"
+    | status=~\\\"5..\\\" [1m])) or vector(0)) / sum(rate({namespace=\\\"robot-shop\\\",
+    service=\\\"web\\\"} | json | line_format \\\"{{.log}}\\\" | pattern `<_> - -
+    [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>` | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\"
+    [1m]))\",\r\n          \"legendFormat\": \"\",\r\n          \"queryType\": \"range\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"options\": {\r\n
+    \       \"reduceOptions\": {\r\n          \"calcs\": [\r\n            \"lastNotNull\"\r\n
+    \         ],\r\n          \"fields\": \"\",\r\n          \"values\": false\r\n
+    \       },\r\n        \"colorMode\": \"background\",\r\n        \"graphMode\":
+    \"area\",\r\n        \"textMode\": \"value\"\r\n      },\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"percentunit\",\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
+    \             {\r\n                \"color\": \"orange\",\r\n                \"value\":
+    0.01\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
+    \               \"value\": 0.05\r\n              }\r\n            ]\r\n          },\r\n
+    \         \"decimals\": 2\r\n        },\r\n        \"overrides\": []\r\n      }\r\n
+    \   },\r\n    {\r\n      \"id\": 4,\r\n      \"type\": \"stat\",\r\n      \"title\":
+    \"p95 latency (worst probe, 5m)\",\r\n      \"description\": \"Synthetic latency
+    measured by the blackbox probes from inside the cluster.\",\r\n      \"datasource\":
+    {\r\n        \"type\": \"prometheus\",\r\n        \"uid\": \"${ds_prom}\"\r\n
+    \     },\r\n      \"gridPos\": {\r\n        \"x\": 18,\r\n        \"y\": 0,\r\n
+    \       \"w\": 6,\r\n        \"h\": 4\r\n      },\r\n      \"targets\": [\r\n
+    \       {\r\n          \"datasource\": {\r\n            \"type\": \"prometheus\",\r\n
+    \           \"uid\": \"${ds_prom}\"\r\n          },\r\n          \"expr\": \"max(quantile_over_time(0.95,
+    probe_duration_seconds[5m]))\",\r\n          \"legendFormat\": \"\",\r\n          \"range\":
+    true,\r\n          \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"options\":
+    {\r\n        \"reduceOptions\": {\r\n          \"calcs\": [\r\n            \"lastNotNull\"\r\n
+    \         ],\r\n          \"fields\": \"\",\r\n          \"values\": false\r\n
+    \       },\r\n        \"colorMode\": \"background\",\r\n        \"graphMode\":
+    \"area\",\r\n        \"textMode\": \"value\"\r\n      },\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"s\",\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
+    \             {\r\n                \"color\": \"orange\",\r\n                \"value\":
+    0.25\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
+    \               \"value\": 1\r\n              }\r\n            ]\r\n          },\r\n
+    \         \"decimals\": 3\r\n        },\r\n        \"overrides\": []\r\n      }\r\n
+    \   },\r\n    {\r\n      \"id\": 5,\r\n      \"type\": \"timeseries\",\r\n      \"title\":
+    \"Requests per second by status\",\r\n      \"description\": \"Request rate split
+    by HTTP status code (from Nginx access logs).\",\r\n      \"datasource\": {\r\n
+    \       \"type\": \"loki\",\r\n        \"uid\": \"${ds_loki}\"\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"x\": 0,\r\n        \"y\": 4,\r\n        \"w\":
+    12,\r\n        \"h\": 8\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"${ds_loki}\"\r\n
+    \         },\r\n          \"expr\": \"sum by (status) (rate({namespace=\\\"robot-shop\\\",
+    service=\\\"web\\\"} | json | line_format \\\"{{.log}}\\\" | pattern `<_> - -
+    [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>` | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\"
+    [1m]))\",\r\n          \"legendFormat\": \"{{status}}\",\r\n          \"queryType\":
+    \"range\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"reqps\",\r\n          \"custom\":
+    {\r\n            \"drawStyle\": \"line\",\r\n            \"lineWidth\": 1,\r\n
+    \           \"fillOpacity\": 40,\r\n            \"showPoints\": \"never\",\r\n
+    \           \"spanNulls\": true,\r\n            \"stacking\": {\r\n              \"mode\":
+    \"normal\",\r\n              \"group\": \"A\"\r\n            }\r\n          }\r\n
+    \       },\r\n        \"overrides\": []\r\n      },\r\n      \"options\": {\r\n
+    \       \"legend\": {\r\n          \"displayMode\": \"list\",\r\n          \"placement\":
+    \"bottom\"\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n
+    \         \"sort\": \"desc\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n      \"id\":
+    6,\r\n      \"type\": \"timeseries\",\r\n      \"title\": \"5xx error ratio\",\r\n
+    \     \"description\": \"Server errors as a share of all requests. 4xx are client
+    errors and are not counted.\",\r\n      \"datasource\": {\r\n        \"type\":
+    \"loki\",\r\n        \"uid\": \"${ds_loki}\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"x\": 12,\r\n        \"y\": 4,\r\n        \"w\": 12,\r\n        \"h\":
+    8\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"${ds_loki}\"\r\n
+    \         },\r\n          \"expr\": \"(sum(rate({namespace=\\\"robot-shop\\\",
+    service=\\\"web\\\"} | json | line_format \\\"{{.log}}\\\" | pattern `<_> - -
+    [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>` | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\"
+    | status=~\\\"5..\\\" [1m])) or vector(0)) / sum(rate({namespace=\\\"robot-shop\\\",
+    service=\\\"web\\\"} | json | line_format \\\"{{.log}}\\\" | pattern `<_> - -
+    [<_>] \\\"<_> <_> <_>\\\" <status> <_> <_>` | __error__=\\\"\\\" | status=~\\\"[0-9]{3}\\\"
+    [1m]))\",\r\n          \"legendFormat\": \"5xx ratio\",\r\n          \"queryType\":
+    \"range\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"percentunit\",\r\n          \"custom\":
+    {\r\n            \"drawStyle\": \"line\",\r\n            \"lineWidth\": 1,\r\n
+    \           \"fillOpacity\": 15,\r\n            \"showPoints\": \"never\",\r\n
+    \           \"spanNulls\": true\r\n          },\r\n          \"min\": 0\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"options\": {\r\n        \"legend\":
+    {\r\n          \"displayMode\": \"list\",\r\n          \"placement\": \"bottom\"\r\n
+    \       },\r\n        \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n          \"sort\":
+    \"desc\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n      \"id\": 7,\r\n      \"type\":
+    \"timeseries\",\r\n      \"title\": \"Error log lines per second by service\",\r\n
+    \     \"description\": \"Log lines classified as error, per service. The agent
+    lookup noise is excluded. Includes 404s from web.\",\r\n      \"datasource\":
+    {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"${ds_loki}\"\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"x\": 0,\r\n        \"y\": 12,\r\n        \"w\":
+    12,\r\n        \"h\": 8\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"${ds_loki}\"\r\n
+    \         },\r\n          \"expr\": \"sum by (service) (rate({namespace=\\\"robot-shop\\\",
+    level=\\\"error\\\"} != \\\"agent host candidates\\\" [1m]))\",\r\n          \"legendFormat\":
+    \"{{service}}\",\r\n          \"queryType\": \"range\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"unit\": \"ops\",\r\n          \"custom\": {\r\n            \"drawStyle\":
+    \"line\",\r\n            \"lineWidth\": 1,\r\n            \"fillOpacity\": 15,\r\n
+    \           \"showPoints\": \"never\",\r\n            \"spanNulls\": true\r\n
+    \         }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"displayMode\": \"list\",\r\n          \"placement\":
+    \"bottom\"\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n
+    \         \"sort\": \"desc\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n      \"id\":
+    8,\r\n      \"type\": \"timeseries\",\r\n      \"title\": \"Latency p95 per probe
+    (5m window)\",\r\n      \"description\": \"Blackbox probe duration for the frontpage,
+    catalogue and shipping paths.\",\r\n      \"datasource\": {\r\n        \"type\":
+    \"prometheus\",\r\n        \"uid\": \"${ds_prom}\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"x\": 12,\r\n        \"y\": 12,\r\n        \"w\": 12,\r\n        \"h\":
+    8\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"prometheus\",\r\n            \"uid\": \"${ds_prom}\"\r\n
+    \         },\r\n          \"expr\": \"quantile_over_time(0.95, probe_duration_seconds[5m])\",\r\n
+    \         \"legendFormat\": \"{{target}}\",\r\n          \"range\": true,\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"s\",\r\n          \"custom\":
+    {\r\n            \"drawStyle\": \"line\",\r\n            \"lineWidth\": 1,\r\n
+    \           \"fillOpacity\": 15,\r\n            \"showPoints\": \"never\",\r\n
+    \           \"spanNulls\": true\r\n          },\r\n          \"min\": 0\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"options\": {\r\n        \"legend\":
+    {\r\n          \"displayMode\": \"list\",\r\n          \"placement\": \"bottom\"\r\n
+    \       },\r\n        \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n          \"sort\":
+    \"desc\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n      \"id\": 9,\r\n      \"type\":
+    \"timeseries\",\r\n      \"title\": \"Availability per probe (5m average)\",\r\n
+    \     \"description\": \"1 means every probe in the window succeeded. A drop on
+    one probe with the others at 1 means a partial outage.\",\r\n      \"datasource\":
+    {\r\n        \"type\": \"prometheus\",\r\n        \"uid\": \"${ds_prom}\"\r\n
+    \     },\r\n      \"gridPos\": {\r\n        \"x\": 0,\r\n        \"y\": 20,\r\n
+    \       \"w\": 24,\r\n        \"h\": 8\r\n      },\r\n      \"targets\": [\r\n
+    \       {\r\n          \"datasource\": {\r\n            \"type\": \"prometheus\",\r\n
+    \           \"uid\": \"${ds_prom}\"\r\n          },\r\n          \"expr\": \"avg_over_time(probe_success[5m])\",\r\n
+    \         \"legendFormat\": \"{{target}}\",\r\n          \"range\": true,\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"percentunit\",\r\n          \"custom\":
+    {\r\n            \"drawStyle\": \"line\",\r\n            \"lineWidth\": 1,\r\n
+    \           \"fillOpacity\": 15,\r\n            \"showPoints\": \"never\",\r\n
+    \           \"spanNulls\": true\r\n          },\r\n          \"min\": 0,\r\n          \"max\":
+    1.05\r\n        },\r\n        \"overrides\": []\r\n      },\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"displayMode\": \"list\",\r\n          \"placement\":
+    \"bottom\"\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n
+    \         \"sort\": \"desc\"\r\n        }\r\n      }\r\n    }\r\n  ]\r\n}"
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  name: robot-shop-golden-signals
+  namespace: monitoring
