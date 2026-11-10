@@ -1,3 +1,12 @@
+  # To send alerts to Slack (untested here, no workspace was available):
+  # receivers:
+  #   - name: slack
+  #     slack_configs:
+  #       - api_url_file: /etc/alertmanager/secrets/slack-webhook/url
+  #         channel: "#alerts"
+  #         send_resolved: true
+  # and add a route to it, plus alertmanagerSpec.secrets: [slack-webhook]
+
 alertmanager:
   alertmanagerSpec:
     secrets:

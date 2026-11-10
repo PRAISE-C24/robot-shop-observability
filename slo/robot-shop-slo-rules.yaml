@@ -1,0 +1,36 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: robot-shop-slo
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: robot-shop-slo-recording
+      interval: 30s
+      rules:
+        - record: slo:availability:ratio_rate1m
+          expr: |
+            sum(sum_over_time(probe_success{target=~"robot-shop-(frontpage|catalogue|shipping)"}[1m]))
+            /
+            sum(count_over_time(probe_success{target=~"robot-shop-(frontpage|catalogue|shipping)"}[1m]))
+        - record: slo:availability:ratio_rate5m
+          expr: |
+            sum(sum_over_time(probe_success{target=~"robot-shop-(frontpage|catalogue|shipping)"}[5m]))
+            /
+            sum(count_over_time(probe_success{target=~"robot-shop-(frontpage|catalogue|shipping)"}[5m]))
+    - name: robot-shop-slo-alerts
+      rules:
+        - alert: RobotShopAvailabilityFastBurn
+          expr: |
+            (1 - slo:availability:ratio_rate5m) / (1 - 0.995) > 14.4
+            and
+            (1 - slo:availability:ratio_rate1m) / (1 - 0.995) > 14.4
+          for: 1m
+          labels:
+            severity: page
+            slo: availability
+          annotations:
+            summary: "Robot Shop availability SLO is burning its error budget fast"
+            description: "The share of failing probes is more than 14.4 times what a 99.5% SLO allows, over both 5m and 1m windows. Check which probe is failing: probe_success by target."

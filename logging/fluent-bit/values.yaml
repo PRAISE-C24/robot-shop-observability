@@ -1,13 +1,59 @@
-config:
-  outputs: |
-    [OUTPUT]
-        Name loki
-        Match kube.*
-        Host loki.monitoring.svc.cluster.local
-        Port 3100
-        Labels job=fluentbit, namespace=$kubernetes['namespace_name'], pod=$kubernetes['pod_name'], container=$kubernetes['container_name']
-        Line_Format json
+luaScripts:
+  level.lua: |
+    local function normalize(l)
+      l = string.lower(l)
+      if l == "warning" then return "warn" end
+      if l == "fatal" or l == "critical" or l == "err" or l == "panic" then return "error" end
+      if l == "trace" then return "debug" end
+      if l == "information" or l == "notice" then return "info" end
+      return l
+    end
 
+    function extract_level(tag, timestamp, record)
+      local result = nil
+      local level = record["level"]
+
+      -- 1. structured logs (the Node services): "info", or a number such as 30 or 40
+      if type(level) == "number" then
+        if level >= 50 then result = "error"
+        elseif level >= 40 then result = "warn"
+        elseif level >= 30 then result = "info"
+        else result = "debug" end
+      elseif type(level) == "string" then
+        result = normalize(level)
+      end
+
+      -- 2. a level word in plain text: INFO, ERROR, php.INFO ...
+      if not result then
+        local line = record["log"] or ""
+        for _, word in ipairs({"FATAL", "CRITICAL", "ERROR", "WARNING", "WARN", "INFO", "DEBUG", "TRACE"}) do
+          if string.find(line, "%f[%w]" .. word .. "%f[%W]") then
+            result = normalize(word)
+            break
+          end
+        end
+      end
+
+      -- 3. access logs have no level, so use the HTTP status (nginx, Apache, uWSGI)
+      if not result then
+        local line = record["log"] or ""
+        local status = string.match(line, '" (%d%d%d) ') or string.match(line, "%(HTTP/[%d%.]+ (%d%d%d)%)")
+        if status then
+          if tonumber(status) >= 500 then result = "error" else result = "info" end
+        end
+      end
+
+      -- 4. a server error status is an error, whatever the app logged
+      local res = record["res"]
+      if type(res) == "table" and type(res["statusCode"]) == "number" and res["statusCode"] >= 500 then
+        result = "error"
+      end
+
+      record["log_level"] = result or "unknown"
+      return 1, timestamp, record
+    end
+
+config:
   inputs: |
     [INPUT]
         Name tail
@@ -31,6 +77,39 @@ config:
         Name grep
         Match kube.*
         Regex $kubernetes['namespace_name'] robot-shop
+
+    # The shop's tracing code looks for an Instana agent we do not run. Drop that noise.
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude log instana
+
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude log agent host candidates
+
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude name @instana/collector
+
+    [FILTER]
+        Name lua
+        Match kube.*
+        script /fluent-bit/scripts/level.lua
+        call extract_level
+
+  outputs: |
+    [OUTPUT]
+        Name loki
+        Match kube.*
+        Host loki.monitoring.svc.cluster.local
+        Port 3100
+        Labels job=fluentbit, namespace=$kubernetes['namespace_name'], pod=$kubernetes['pod_name'], service=$kubernetes['container_name'], level=$log_level
+        Remove_Keys kubernetes,stream,_p,log_level
+        Drop_Single_Key On
+        Line_Format json
 
 resources:
   requests:

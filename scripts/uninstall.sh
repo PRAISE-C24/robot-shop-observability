@@ -65,6 +65,9 @@ helm uninstall loki -n monitoring || true
 echo "== Remove Jaeger =="
 helm uninstall jaeger -n tracing || true
 
+echo "== Remove opentelemetry-operator =="
+helm uninstall opentelemetry-operator -n opentelemetry-operator-system || true
+
 echo "== Remove Prometheus and Grafana =="
 helm uninstall kube-prometheus-stack -n monitoring || true
 

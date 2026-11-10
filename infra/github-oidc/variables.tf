@@ -16,7 +16,7 @@ variable "github_repo_sub" {
 
 variable "state_bucket" {
   type    = string
-  default = "tfstate-663001881484-us-east-1"
+  default = "tfstate-223455088174-us-east-1"
 }
 
 variable "cluster_name" {

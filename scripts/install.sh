@@ -26,6 +26,7 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo add fluent https://fluent.github.io/helm-charts
 helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo update
 
 echo "== AWS Load Balancer Controller =="
@@ -80,6 +81,27 @@ helm upgrade --install jaeger jaegertracing/jaeger \
   -f tracing/jaeger-values.yaml \
   --wait --timeout 10m
 
+echo "== Tracing (OpenTelemetry auto-instrumentation) =="
+kubectl -n tracing get svc jaeger >/dev/null \
+  || { echo "Jaeger service 'jaeger' not found; fix the endpoint in tracing/instrumentation.yaml"; exit 1; }
+
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator \
+  -n opentelemetry-operator-system --create-namespace \
+  --version "$OTEL_OPERATOR_CHART_VERSION" \
+  -f tracing/otel-operator-values.yaml \
+  --wait --timeout 5m
+
+# The operator's webhook can take a few seconds to accept requests
+for i in $(seq 1 20); do
+  kubectl apply -f tracing/instrumentation.yaml && break
+  echo "waiting for the operator webhook ($i/20)..."; sleep 6
+done
+
+# Instrument one service. The Instrumentation resource must exist before the pod restarts.
+kubectl -n robot-shop patch deploy shipping --type merge -p \
+  '{"spec":{"template":{"metadata":{"annotations":{"instrumentation.opentelemetry.io/inject-java":"true"}}}}}'
+kubectl -n robot-shop rollout status deploy/shipping --timeout=300s
+
 echo "== Robot Shop =="
 helm upgrade --install robot-shop robot-shop/chart \
   --namespace robot-shop --create-namespace \
@@ -104,6 +126,14 @@ helm upgrade --install blackbox-exporter prometheus-community/prometheus-blackbo
   -f monitoring/blackbox-values.yaml \
   --wait --timeout 5m
 kubectl apply -f monitoring/robot-shop-podmonitor.yaml
+
+echo "== Dashboard and SLO rules =="
+kubectl -n monitoring create configmap robot-shop-golden-signals \
+  --from-file=robot-shop-golden-signals.json=monitoring/dashboards/robot-shop-golden-signals.json \
+  --dry-run=client -o yaml \
+  | kubectl label --local -f - grafana_dashboard=1 -o yaml \
+  | kubectl apply -f -
+kubectl apply -f slo/robot-shop-slo-rules.yaml
 
 echo
 echo "Installation complete."
