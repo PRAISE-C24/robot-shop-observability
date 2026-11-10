@@ -1,6 +1,7 @@
 name: infra
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "infra/eks/**"

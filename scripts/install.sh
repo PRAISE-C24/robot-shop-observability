@@ -7,7 +7,7 @@ trap 'echo "ERROR: install.sh failed near line $LINENO" >&2' ERR
 CLUSTER="${CLUSTER_NAME:-robot-shop}"
 REGION="${AWS_REGION:-us-east-1}"
 BLACKBOX_VERSION="11.20.2"            # helm search repo prometheus-community/prometheus-blackbox-exporter
-OTEL_OPERATOR_CHART_VERSION="0.120.0" # helm repo update && helm search repo open-telemetry/opentelemetry-operator --versions | head -5
+OTEL_OPERATOR_CHART_VERSION="0.129.0" # helm repo update && helm search repo open-telemetry/opentelemetry-operator --versions | head -5
 
 for tool in aws kubectl helm; do
   command -v "$tool" >/dev/null || { echo "Missing required tool: $tool"; exit 1; }
