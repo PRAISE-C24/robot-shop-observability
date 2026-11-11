@@ -1,0 +1,21 @@
+6m9s        Normal    Scheduled           pod/cart-5b6f9d6d59-t2vp7       Successfully assigned robot-shop/cart-5b6f9d6d59-t2vp7 to ip-172-31-92-88.ec2.internal
+6m9s        Normal    ScalingReplicaSet   deployment/cart                 Scaled up replica set cart-5b6f9d6d59 from 0 to 1
+6m9s        Normal    SuccessfulCreate    replicaset/cart-5b6f9d6d59      Created pod: cart-5b6f9d6d59-t2vp7
+6m8s        Normal    Started             pod/cart-5b6f9d6d59-t2vp7       Container started
+6m8s        Normal    Pulled              pod/cart-5b6f9d6d59-t2vp7       Container image "ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.82.0-1" already present on machine and can be accessed by the pod
+6m8s        Normal    Created             pod/cart-5b6f9d6d59-t2vp7       Container created
+6m7s        Normal    SuccessfulDelete    replicaset/cart-574cbb5d97      Deleted pod: cart-574cbb5d97-prlc5
+6m7s        Normal    ScalingReplicaSet   deployment/cart                 Scaled down replica set cart-574cbb5d97 from 1 to 0
+6m7s        Normal    Killing             pod/cart-574cbb5d97-prlc5       Stopping container cart
+3m24s       Normal    Started             pod/cart-5b6f9d6d59-t2vp7       Container started
+3m24s       Normal    Pulled              pod/cart-5b6f9d6d59-t2vp7       Container image "robotshop/rs-cart:latest" already present on machine and can be accessed by the pod
+3m24s       Normal    Created             pod/cart-5b6f9d6d59-t2vp7       Container created
+117s        Warning   BackOff             pod/cart-5b6f9d6d59-t2vp7       Back-off restarting failed container cart in pod cart-5b6f9d6d59-t2vp7_robot-shop(a6d49161-6033-460f-b67f-3bfb310ba089)
+91s         Normal    Scheduled           pod/cart-574cbb5d97-6cwp2       Successfully assigned robot-shop/cart-574cbb5d97-6cwp2 to ip-172-31-28-166.ec2.internal
+91s         Normal    ScalingReplicaSet   deployment/cart                 Scaled up replica set cart-574cbb5d97 from 0 to 1
+91s         Normal    SuccessfulCreate    replicaset/cart-574cbb5d97      Created pod: cart-574cbb5d97-6cwp2
+90s         Normal    Started             pod/cart-574cbb5d97-6cwp2       Container started
+90s         Normal    SuccessfulDelete    replicaset/cart-5b6f9d6d59      Deleted pod: cart-5b6f9d6d59-t2vp7
+90s         Normal    Created             pod/cart-574cbb5d97-6cwp2       Container created
+90s         Normal    ScalingReplicaSet   deployment/cart                 Scaled down replica set cart-5b6f9d6d59 from 1 to 0
+90s         Normal    Pulled              pod/cart-574cbb5d97-6cwp2       Container image "robotshop/rs-cart:latest" already present on machine and can be accessed by the pod
